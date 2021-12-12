@@ -1,5 +1,10 @@
 # Pak CLI
 
+![License][license]
+[![Current Release Version][version]][npm]
+![Weekly Downloads][downloads]
+[![Sponsors][sponsors]][become-a-sponsor]
+
 A common toolchain for building npm packages written as ES modules.
 
 Inspired by [react-scripts][1]. Like that, but for a different set of technology choices.
@@ -72,3 +77,9 @@ development of new and existing npm packages as native ES modules:
  * Marked is used to convert the README into HTML for publishing.
 
 [1]: https://www.npmjs.com/package/react-scripts
+[license]: https://img.shields.io/npm/l/pak-cli
+[version]: https://img.shields.io/npm/v/pak-cli
+[downloads]: https://img.shields.io/npm/dw/pak-cli
+[sponsors]: https://img.shields.io/github/sponsors/canterberry
+[become-a-sponsor]: https://github.com/sponsors/canterberry
+[npm]: https://npmjs.com/package/pak-cli
