@@ -1,0 +1,306 @@
+#!/bin/sh
+
+set -eu
+
+BIN_DIR="$(cd "$(dirname "$0")" && pwd)"
+BASE_DIR="$(dirname "${BIN_DIR}")"
+
+if [ "$(basename "${BIN_DIR}")" = ".bin" ]; then
+  BASE_DIR="$(echo "${BIN_DIR}" | sed -E 's|/node_modules/.+$||g')"
+fi
+
+SOURCE_DIR="${BASE_DIR}/src"
+BUILD_DIR="${BASE_DIR}/lib"
+COVERAGE_DIR="${BASE_DIR}/coverage"
+DOCS_DIR="${BASE_DIR}/docs"
+
+pak_help() {
+  >&2 cat <<EOF
+---
+usage: $0 <command>
+description: Shortcuts for common npm package operations.
+commands:
+- name: build
+  description: Compiles CommonJS and ESM variants from src/**/index.mjs.
+- name: docs
+  description: Compiles README.md to docs/index.html.
+- name: init
+  description: Patches package.json with reasonable defaults for $0 commands to work.
+- name: lint
+  description: Performs static analysis on source files in src/.
+- name: test
+  description: Runs src/**/spec.mjs as a test suite, requiring src/spec.setup.mjs if present, and enforcing 100% code coverage.
+- name: test:coverage
+  description: Reports on code coverage from the most recent test run.
+EOF
+  exit 1
+}
+
+pak_require() {
+  local COMMAND="$1"
+  shift
+
+  if [ -z "$(which "${COMMAND}")" ]; then
+    npm install --save-dev "$@"
+  fi
+}
+
+pak_build_commonjs() {
+  pak_require babel @babel/cli @babel/core
+
+  mkdir -vp "${BUILD_DIR}"
+
+  babel \
+    --compact true \
+    --delete-dir-on-start \
+    --env-name production \
+    --minified \
+    --no-comments \
+    --no-highlight-code \
+    --out-dir "${BUILD_DIR}/cjs" \
+    --out-file-extension .js \
+    --source-root "${SOURCE_DIR}" \
+    "$@" \
+    '**/index.mjs'
+
+  > "${BUILD_DIR}/cjs/package.json" echo '{"type":"commonjs"}'
+}
+
+pak_build_module() {
+  pak_require babel @babel/cli @babel/core
+
+  mkdir -vp "${BUILD_DIR}"
+
+  babel \
+    --compact true \
+    --delete-dir-on-start \
+    --env-name production \
+    --minified \
+    --no-babelrc \
+    --no-comments \
+    --no-highlight-code \
+    --out-dir "${BUILD_DIR}/esm" \
+    --out-file-extension .mjs \
+    --source-root "${SOURCE_DIR}" \
+    "$@" \
+    '**/index.mjs'
+
+  > "${BUILD_DIR}/esm/package.json" echo '{"type":"module"}'
+}
+
+pak_build() {
+  pak_build_commonjs "$@"
+  pak_build_module "$@"
+}
+
+pak_docs_marked() {
+  pak_require marked marked
+
+  marked \
+    -i "${BASE_DIR}/README.md" \
+    -o "${1:-"${DOCS_DIR}"}/index.html"
+}
+
+pak_docs() {
+  pak_docs_marked "$@"
+}
+
+pak_init_exports() {
+  node <<EOF
+const fs = require('fs');
+const config = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+
+config.main = 'lib/cjs/index.js';
+config.module = 'lib/esm/index.mjs';
+config.sideEffects = false;
+config.exports = {
+  '.': {
+    import: './lib/esm/index.mjs',
+    require: './lib/cjs/index.js'
+  }
+},
+
+fs.writeFileSync('package.json', JSON.stringify(config));
+EOF
+}
+
+pak_init_scripts() {
+  node <<EOF
+const fs = require('fs');
+const config = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+
+config.scripts = ['build', 'docs', 'lint', 'test', 'test:coverage'].reduce((scripts, command) => {
+  scripts[command] = \`pak \${command}\`;
+  return scripts;
+}, config.scripts || {});
+
+fs.writeFileSync('package.json', JSON.stringify(config));
+EOF
+}
+
+pak_init_babel() {
+  pak_require babel @babel/cli @babel/core @babel/preset-env
+
+  node <<EOF
+const fs = require('fs');
+const config = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+
+if (!config.babel) {
+  fs.writeFileSync('package.json', JSON.stringify({
+    ...config,
+    babel: {
+      presets: [
+        [
+          '@babel/preset-env',
+          {
+            targets: '> 0.25%, not dead'
+          }
+        ]
+      ]
+    }
+  }));
+}
+EOF
+}
+
+pak_init_eslint() {
+  pak_require eslint eslint eslint-plugin-ante
+
+  node <<EOF
+const fs = require('fs');
+const config = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+
+if (!config.eslintConfig) {
+  fs.writeFileSync('package.json', JSON.stringify({
+    ...config,
+    eslintConfig: {
+      env: {
+        browser: true,
+        es6: true
+      },
+      extends: [
+        'eslint:recommended',
+        'plugin:ante/recommended',
+        'plugin:ante/style'
+      ],
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module'
+      },
+      plugins: [
+        'eslint-plugin-ante'
+      ]
+    }
+  }, null, 2));
+}
+EOF
+}
+
+pak_init() {
+  pak_init_scripts "$@"
+  pak_init_exports "$@"
+  pak_init_babel "$@"
+  pak_init_eslint "$@"
+}
+
+pak_lint_eslint() {
+  pak_require eslint eslint
+
+  eslint "$@" "${SOURCE_DIR}/**.mjs"
+}
+
+pak_lint() {
+  pak_lint_eslint "$@"
+}
+
+pak_test_mocha() {
+  pak_require c8 c8
+  pak_require mocha mocha
+
+  c8 \
+    --check-coverage \
+    --branches 100 \
+    --functions 100 \
+    --include '**/index.mjs' \
+    --lines 100 \
+    --quiet \
+    --statements 100 \
+    mocha \
+      --exclude '**/index.mjs' \
+      --recursive \
+      "$@" \
+      $([ -f "${SOURCE_DIR}/spec.setup.mjs" ] && echo "--require \"${SOURCE_DIR}/spec.setup.mjs\"") \
+      "${SOURCE_DIR}"
+}
+
+pak_test() {
+  pak_test_mocha "$@"
+}
+
+pak_test_coverage() {
+  pak_require c8 c8
+
+  c8 "$@" report
+}
+
+pak() {
+  if [ "$#" -lt 1 ]; then
+    pak_help
+  fi
+
+  local COMMAND="$1"
+  shift
+
+  case "${COMMAND}" in
+    build)
+      pak_build "$@"
+      ;;
+    build:commonjs)
+      pak_build_commonjs "$@"
+      ;;
+    build:module)
+      pak_build_module "$@"
+      ;;
+    docs)
+      pak_docs "$@"
+      ;;
+    docs:marked)
+      pak_docs_marked "$@"
+      ;;
+    init)
+      pak_init "$@"
+      ;;
+    init:babel)
+      pak_init_babel "$@"
+      ;;
+    init:eslint)
+      pak_init_eslint "$@"
+      ;;
+    init:exports)
+      pak_init_exports "$@"
+      ;;
+    init:scripts)
+      pak_init_scripts "$@"
+      ;;
+    lint)
+      pak_lint "$@"
+      ;;
+    lint:eslint)
+      pak_lint_eslint "$@"
+      ;;
+    test)
+      pak_test "$@"
+      ;;
+    test:coverage)
+      pak_test_coverage "$@"
+      ;;
+    test:mocha)
+      pak_test_mocha "$@"
+      ;;
+    *)
+      pak_help
+      ;;
+  esac
+}
+
+pak "$@"
