@@ -130,7 +130,7 @@ const fs = require('fs');
 const config = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
 
 config.scripts = ['build', 'docs', 'lint', 'test', 'test:coverage'].reduce((scripts, command) => {
-  scripts[command] = \`pak \${command}\`;
+  scripts[command] = \`pak-cli \${command}\`;
   return scripts;
 }, config.scripts || {});
 
