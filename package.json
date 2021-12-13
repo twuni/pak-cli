@@ -1,6 +1,6 @@
 {
   "name": "pak-cli",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A standard way to package, document, lint, and test npm packages.",
   "bin": {
     "pak-cli": "bin/cli"
