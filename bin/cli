@@ -56,11 +56,12 @@ pak_build_commonjs() {
     --minified \
     --no-comments \
     --no-highlight-code \
+    --only '**/index.mjs' \
     --out-dir "${BUILD_DIR}/cjs" \
     --out-file-extension .js \
     --source-root "${SOURCE_DIR}" \
     "$@" \
-    '**/index.mjs'
+    "${SOURCE_DIR}"
 
   > "${BUILD_DIR}/cjs/package.json" echo '{"type":"commonjs"}'
 }
@@ -78,11 +79,12 @@ pak_build_module() {
     --no-babelrc \
     --no-comments \
     --no-highlight-code \
+    --only '**/index.mjs' \
     --out-dir "${BUILD_DIR}/esm" \
     --out-file-extension .mjs \
     --source-root "${SOURCE_DIR}" \
     "$@" \
-    '**/index.mjs'
+    "${SOURCE_DIR}"
 
   > "${BUILD_DIR}/esm/package.json" echo '{"type":"module"}'
 }
