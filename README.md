@@ -4,6 +4,7 @@
 [![Current Release Version][version]][npm]
 ![Weekly Downloads][downloads]
 [![Sponsors][sponsors]][become-a-sponsor]
+[![Known Vulnerabilities][vulnerabilities-badge]][vulnerabilities]
 
 A common toolchain for building npm packages written as ES modules.
 
@@ -83,3 +84,5 @@ development of new and existing npm packages as native ES modules:
 [sponsors]: https://img.shields.io/github/sponsors/canterberry
 [become-a-sponsor]: https://github.com/sponsors/canterberry
 [npm]: https://npmjs.com/package/pak-cli
+[vulnerabilities-badge]: https://snyk.io/test/npm/pak-cli/badge.svg
+[vulnerabilities]: https://snyk.io/test/npm/pak-cli
