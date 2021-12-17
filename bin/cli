@@ -209,7 +209,7 @@ pak_init() {
 pak_lint_eslint() {
   pak_require eslint eslint
 
-  eslint "$@" "${SOURCE_DIR}/**.mjs"
+  eslint "$@" "${SOURCE_DIR}/**/*.mjs"
 }
 
 pak_lint() {
